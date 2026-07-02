@@ -1,302 +1,195 @@
-# TechTown Payroll Contracts
+# TechTown Payroll Backend
 
-> Confidential contributor payroll on Stellar — salary amounts stay private through Zero-Knowledge Proofs.
+The REST API server for **TechTown Private DAO** — a confidential payroll system built on Stellar/Soroban. It handles DAO management, employee onboarding, payroll lifecycle, treasury operations, governance proposals, and authentication.
 
-[![Build](https://img.shields.io/badge/build-passing-brightgreen)](#)
-[![Tests](https://img.shields.io/badge/tests-30%20passing-brightgreen)](#)
-[![License](https://img.shields.io/badge/license-MIT-blue)](#license)
-[![Soroban SDK](https://img.shields.io/badge/soroban--sdk-22.0.11-blueviolet)](https://docs.rs/soroban-sdk)
+## Overview
 
----
+- **Language:** Rust (2021 edition)
+- **Framework:** Axum 0.7
+- **Database:** PostgreSQL (via SQLx)
+- **Cache:** Redis
+- **Blockchain:** Stellar / Soroban smart contracts
+- **Privacy:** Zero-Knowledge commitments using SHA-256 + Merkle trees
 
-## What This Is
-
-TechTown Payroll Contracts is the on-chain layer of [TechTown-Private-DAO](https://github.com/TechTown-Private-DAO) — an open-source payroll platform that lets DAOs, startups, and open-source organisations pay contributors on Stellar while keeping every salary amount confidential.
-
-Instead of broadcasting `Alice gets $5,000` to the world, the system proves:
-
-- The payroll follows company rules
-- The treasury has sufficient funds
-- Each employee receives a valid payment
-- No salary figure is ever visible on-chain
-
-This is achieved through **salary commitments** (`hash(salary || randomness || employee_id)`) and **Zero-Knowledge Proofs** that verify correctness without revealing values.
-
----
-
-## Repository Layout
+## Architecture
 
 ```
-techtown-payroll-contracts/
-├── contracts/
-│   └── src/
-│       ├── lib.rs           # Contract entry point — all public functions
-│       ├── types.rs         # Shared types (contracttype structs/enums)
-│       ├── errors.rs        # ContractError enum
-│       ├── storage.rs       # Typed DataKey enum + all storage helpers
-│       ├── dao.rs           # DAO lifecycle and roles system
-│       ├── employee.rs      # Employee registry
-│       ├── treasury.rs      # Token deposits, withdrawals, budget locking
-│       ├── payroll.rs       # Payroll lifecycle + ZK-gated execution
-│       ├── zk_verifier.rs   # ZK proof and Merkle proof verification
-│       ├── multisig.rs      # Governance proposals
-│       ├── upgrade.rs       # Verifying key + contract upgradeability
-│       ├── event.rs         # On-chain event emitters
-│       └── test.rs          # 30 integration tests
-├── Cargo.toml               # Workspace
-├── NEXT_STEPS.md            # Development roadmap
-└── README.md
+src/
+├── main.rs              # Server bootstrap, router setup
+├── config.rs            # Config loaded from environment variables
+├── models.rs            # Shared data models (DAO, Employee, Payroll, Proposal, etc.)
+├── api/
+│   ├── auth.rs          # Login, register, token refresh
+│   ├── dao.rs           # Create and fetch DAOs
+│   ├── employee.rs      # Add, update, remove employees
+│   ├── payroll.rs       # Payroll CRUD, treasury, proposals
+│   └── health.rs        # Health check endpoint
+├── db/
+│   └── mod.rs           # Database connection pool setup
+└── services/
+    ├── mod.rs           # Service exports (PayrollService, StellarService)
+    ├── payroll_service.rs # Core business logic
+    └── utils/
+        ├── merkle_tree.rs # Merkle tree for payroll proofs
+        └── zk_prover.rs   # ZK commitment and proof generation
+migrations/
+└── 0001_initial.sql     # Initial database schema
 ```
 
----
+## Features
 
-## Smart Contract Overview
+- **DAO Management** — Create and manage on-chain DAOs with multi-sig thresholds
+- **Employee Lifecycle** — Add, freeze, activate, and remove employees with privacy-preserving salary commitments
+- **Payroll Lifecycle** — Create → Approve → Execute → Claim with ZK proof verification and Merkle root anchoring
+- **Treasury** — Track deposits and compute live balance across all treasury transactions
+- **Proposals** — Multi-sig governance proposals with per-address approval tracking
+- **Auth** — Wallet-based authentication (JWT) with register, login, and token refresh
+- **Caching** — Redis caching for payroll reads with 1-hour TTL and automatic invalidation
 
-### DAO (`dao.rs`)
-Manages organisation creation and access control.
+## API Reference
 
-| Function | Role Required | Description |
-|---|---|---|
-| `create_dao` | — | Create a DAO; caller becomes first Admin |
-| `update_dao_settings` | Admin | Change name, symbol, multisig threshold |
-| `transfer_dao_admin` | Admin | Hand off primary admin address |
-| `pause_dao` / `unpause_dao` | Admin | Emergency circuit breaker |
-| `add_member` | Admin | Add a member with role (Admin/Treasurer/Viewer) |
-| `remove_member` | Admin | Remove a member (primary admin is protected) |
-| `update_member_role` | Admin | Reassign a member's role |
-| `get_members` | — | List all DAO members |
+### Health
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/health` | Server health check |
 
-**Role hierarchy:** `Admin > Treasurer > Viewer`
+### Auth
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/auth/register` | Register a new wallet user |
+| POST | `/api/auth/login` | Authenticate and receive JWT |
+| POST | `/api/auth/refresh` | Refresh an existing JWT |
 
-### Employee (`employee.rs`)
-On-chain registry of contributors. Salary amounts are never stored — only commitment hashes.
+### DAOs
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/daos` | Create a new DAO |
+| GET | `/api/daos/:id` | Get DAO by ID |
 
-| Function | Role Required | Description |
-|---|---|---|
-| `add_employee` | Admin | Register employee with wallet + commitment hash |
-| `remove_employee` | Admin | Soft-delete (data preserved, status = Removed) |
-| `freeze_employee` | Admin | Block salary claims without removing |
-| `activate_employee` | Admin | Re-enable a frozen employee |
-| `update_employee_wallet` | Employee | Self-service wallet rotation |
-| `update_employee_commitment` | Admin | Update salary commitment (on pay change) |
+### Employees
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/daos/:id/employees` | Add an employee |
+| GET | `/api/daos/:id/employees` | List all active employees |
+| PUT | `/api/daos/:id/employees/:employee_id` | Freeze or activate an employee |
+| DELETE | `/api/daos/:id/employees/:employee_id` | Remove an employee |
 
-### Treasury (`treasury.rs`)
-Holds DAO funds. Only whitelisted tokens accepted.
+### Payroll
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/daos/:id/payroll` | Create a payroll run |
+| GET | `/api/daos/:id/payroll` | List payrolls (paginated) |
+| POST | `/api/daos/:id/payroll/:payroll_id/approve` | Approve a payroll |
+| POST | `/api/daos/:id/payroll/:payroll_id/execute` | Execute an approved payroll |
+| POST | `/api/daos/:id/payroll/:payroll_id/claim` | Claim payroll as an employee |
 
-| Function | Role Required | Description |
-|---|---|---|
-| `add_token` | Admin | Whitelist a token (SEP-41) for this DAO |
-| `remove_token` | Admin | Remove a token from the whitelist |
-| `deposit` | — | Deposit whitelisted tokens into the treasury |
-| `withdraw` | Treasurer / Admin | Withdraw free treasury balance |
-| `treasury_balance` | — | Query available balance for a token |
-| `locked_balance` | — | Query escrowed balance for a payroll |
+### Treasury
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/daos/:id/treasury/deposit` | Deposit tokens to treasury |
+| GET | `/api/daos/:id/treasury/balance` | Get current treasury balance |
 
-### Payroll (`payroll.rs`)
-Full payroll lifecycle. Funds are locked atomically at execution; employees claim individually.
+### Proposals
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/daos/:id/proposals` | Create a governance proposal |
+| GET | `/api/daos/:id/proposals` | List proposals |
+| POST | `/api/daos/:id/proposals/:proposal_id/approve` | Approve a proposal |
 
-| Function | Role Required | Description |
-|---|---|---|
-| `create_payroll` | Admin | Propose a payroll with Merkle root + commitments |
-| `approve_payroll` | Admin | Approve a pending payroll for execution |
-| `execute_payroll` | — | Submit ZK proof → lock budget atomically |
-| `claim_salary` | Employee | Prove salary + Merkle inclusion → receive payment |
-| `cancel_payroll` | Admin | Cancel pending/approved payroll; releases locked funds |
+## Database Schema
 
-**Guards on `claim_salary`:**
-1. Payroll must be `Executed`
-2. Employee has not already claimed (double-claim guard)
-3. Employee is `Active` (not Frozen or Removed)
-4. Salary commitment verified: `H(salary || randomness || employee_id) == commitment_hash`
-5. Merkle inclusion proof validates `(employee_id || amount)` leaf against payroll root
-6. Period double-pay guard: employee cannot claim twice for the same period
-
-### Multisig (`multisig.rs`)
-Governance proposals with configurable approval thresholds (e.g. 3-of-5).
-
-| Function | Description |
-|---|---|
-| `create_proposal` | Create proposal; proposer auto-approves |
-| `approve_proposal` | Add approval; auto-executes when threshold is met |
-| `reject_proposal` | Admin veto on active proposals |
-| `get_proposal` / `get_all_proposals` | Query proposals |
-
-### Upgrade (`upgrade.rs`)
-Controlled contract evolution, gated to Admin role.
-
-| Function | Description |
-|---|---|
-| `set_verifying_key` | Store the Groth16 verifying key for the ZK circuit |
-| `get_verifying_key` | Query the current verifying key |
-| `upgrade_contract` | Upgrade contract WASM (upload hash via Stellar CLI first) |
-
-### ZK Verifier (`zk_verifier.rs`)
-All hashing uses the Soroban host's native SHA-256 — no external crates.
-
-| Function | Description |
-|---|---|
-| `verify_payroll_proof` | Verify ZK proof against public inputs + Merkle root |
-| `verify_salary_commitment` | Check `H(salary \|\| randomness \|\| id) == commitment_hash` |
-| `verify_merkle_proof` | Binary Merkle inclusion proof |
-| `compute_commitment` | Compute a commitment hash (callable via simulate) |
-
-> **Note:** The pairing check in `verify_payroll_proof` is currently a structural stub. Replace the placeholder body with a real Groth16 verification once the circuit and verifying key are available. See `NEXT_STEPS.md`.
-
----
-
-## Payroll Flow
-
-```
-Admin: create_dao()
-Admin: add_token()           ← whitelist USDC / XLM
-Admin: add_employee()        ← stores H(salary || rand || id)
-
-Off-chain:
-  Backend builds Merkle tree of (employee_id, amount) leaves
-  Backend generates ZK proof (snarkjs / circom)
-
-Admin: create_payroll()      ← submits Merkle root + commitments
-Admin: approve_payroll()
-
-Anyone: execute_payroll()    ← submits ZK proof → locks funds in escrow
-
-Employee: claim_salary()     ← proves salary knowledge + Merkle path
-                               receives payment from escrow
-```
-
----
-
-## ZK Proof Format
-
-The contract expects `ZKProof { proof: Bytes, public_inputs: Vec<Bytes> }` where:
-
-| Index | Content | Encoding |
-|---|---|---|
-| `public_inputs[0]` | `total_amount` | 16-byte big-endian `i128` |
-| `public_inputs[1]` | `employee_count` | 4-byte big-endian `u32` |
-| `public_inputs[2]` | `merkle_root` | 32 bytes |
-
-**Merkle leaf:** `SHA-256(employee_id_be8 || amount_be16)`
-
-**Commitment hash:** `SHA-256(salary_be16 || randomness || employee_id_be8)`
-
----
+| Table | Description |
+|-------|-------------|
+| `users` | Registered wallet users |
+| `daos` | DAO registry with on-chain contract address |
+| `employees` | DAO members with ZK commitment hashes |
+| `payrolls` | Payroll runs with Merkle root and lifecycle status |
+| `salary_commitments` | Per-employee salary commitments per payroll period |
+| `proposals` | Governance proposals with multi-sig approvals array |
+| `treasury_transactions` | Deposits and withdrawals for treasury balance tracking |
 
 ## Getting Started
 
 ### Prerequisites
 
-- [Rust](https://rustup.rs/) stable toolchain
-- [Stellar CLI](https://developers.stellar.org/docs/tools/developer-tools/cli/install-stellar-cli)
+- Rust 1.75+
+- PostgreSQL 14+
+- Redis 6+
+- A Stellar RPC endpoint (Soroban-compatible)
 
-```bash
-rustup target add wasm32-unknown-unknown
+### Environment Variables
+
+Create a `.env` file in the project root:
+
+```env
+DATABASE_URL=postgres://user:password@localhost:5432/techtown_payroll
+REDIS_URL=redis://localhost:6379
+STELLAR_RPC_URL=https://soroban-testnet.stellar.org
+STELLAR_NETWORK_PASSPHRASE=Test SDF Network ; September 2015
+JWT_SECRET=your-super-secret-key
+JWT_EXPIRATION=3600
+CORS_ORIGIN=http://localhost:3001
+PORT=3000
 ```
 
-### Clone and build
+### Running Locally
 
 ```bash
-git clone https://github.com/TechTown-Private-DAO/techtown-payroll-contracts
-cd techtown-payroll-contracts
-cargo build
+# Install Rust (if needed)
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+# Run database migrations
+cargo install sqlx-cli
+sqlx migrate run
+
+# Start the server
+cargo run
 ```
 
-### Run tests
+The server starts on `http://localhost:3000` by default.
+
+### Using Docker
 
 ```bash
+docker build -t techtown-payroll-backend .
+docker run -p 3000:3000 --env-file .env techtown-payroll-backend
+```
+
+### With Docker Compose
+
+From the root `xiaxia/` directory:
+
+```bash
+docker compose up
+```
+
+## Development
+
+```bash
+# Run with auto-reload
+cargo watch -x run
+
+# Run tests
 cargo test
+
+# Check for linting issues
+cargo clippy
+
+# Format code
+cargo fmt
 ```
 
-### Build release WASM
+## Privacy Model
 
-```bash
-cargo build --release --target wasm32-unknown-unknown
-```
+Salary amounts are never stored in plaintext. When an employee is added:
 
-The compiled artifact will be at:
-```
-target/wasm32-unknown-unknown/release/techtown_payroll_contracts.wasm
-```
+1. A **commitment hash** is generated: `SHA-256(salary || randomness || wallet_address)`
+2. Only the hash is stored on-chain and in the database
+3. At payroll execution, a **Merkle tree** is built from all salary commitments
+4. The **Merkle root** is anchored to the payroll record and verified on Stellar
 
-### Deploy to Stellar testnet
-
-```bash
-# Upload the WASM
-stellar contract upload \
-  --wasm target/wasm32-unknown-unknown/release/techtown_payroll_contracts.wasm \
-  --source <YOUR_KEYPAIR> \
-  --network testnet
-
-# Deploy the contract
-stellar contract deploy \
-  --wasm-hash <WASM_HASH_FROM_ABOVE> \
-  --source <YOUR_KEYPAIR> \
-  --network testnet
-```
-
-### Example invocation
-
-```bash
-# Create a DAO
-stellar contract invoke \
-  --id <CONTRACT_ID> \
-  --source <ADMIN_KEYPAIR> \
-  --network testnet \
-  -- create_dao \
-  --admin <ADMIN_ADDRESS> \
-  --name "TechTown" \
-  --symbol "TT" \
-  --multisig_threshold 3
-
-# Whitelist a token
-stellar contract invoke \
-  --id <CONTRACT_ID> \
-  --source <ADMIN_KEYPAIR> \
-  --network testnet \
-  -- add_token \
-  --dao_id 1 \
-  --caller <ADMIN_ADDRESS> \
-  --token_address <USDC_CONTRACT_ID>
-```
-
----
-
-## Architecture Decisions
-
-**Why one contract instead of many?**
-Soroban cross-contract calls add latency and instruction cost. Keeping DAO, treasury, payroll, and multisig in one contract reduces round-trips and simplifies the call graph for the backend relayer.
-
-**Why typed `DataKey` enum instead of string keys?**
-String keys built with `format!` are impossible in `no_std`. A `#[contracttype]` enum gives compact, deterministic, collision-free storage keys with zero runtime allocation.
-
-**Why separate `execute_payroll` and `claim_salary`?**
-Separating lock from disbursement means the full budget is locked atomically in one transaction (easy to verify on-chain), while each employee claims independently. This eliminates the double-withdraw bug common in single-transaction payroll designs.
-
-**Why `token_slot` instead of storing `Address` in `DataKey`?**
-`Address` cannot appear directly in a `#[contracttype]` enum variant used as a storage key. We derive a stable `u64` slot from `SHA-256(address XDR)` — deterministic, collision-resistant, and XDR-serialisable.
-
----
-
-## Project Structure (Full Organisation)
-
-This repository is one of three:
-
-| Repo | Stack | Status |
-|---|---|---|
-| `techtown-payroll-contracts` | Rust · Soroban SDK | ✅ Active |
-| `techtown-payroll-backend` | Rust · Axum · PostgreSQL · Redis | 🚧 Planned |
-| `techtown-payroll-web` | Next.js · React · Tailwind · Stellar Wallet Kit | 🚧 Planned |
-
----
-
-## Contributing
-
-Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a PR.
-
-Good first issues are labelled [`good first issue`](https://github.com/TechTown-Private-DAO/techtown-payroll-contracts/issues?q=label%3A%22good+first+issue%22) on GitHub.
-
----
+> Note: The current ZK prover is a prototype using SHA-256 hashing. Production deployment should replace it with a full Groth16 or PLONK proof system (e.g., via `arkworks` or `bellman`).
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT
