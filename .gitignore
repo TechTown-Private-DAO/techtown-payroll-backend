@@ -1,0 +1,11 @@
+# Rust build artifacts
+/target/
+
+# environment variables
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
