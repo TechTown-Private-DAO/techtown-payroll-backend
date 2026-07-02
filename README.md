@@ -1,123 +1,171 @@
-# TechTown Payroll Backend
+<div align="center">
 
-The REST API server for **TechTown Private DAO** — a confidential payroll system built on Stellar/Soroban. It handles DAO management, employee onboarding, payroll lifecycle, treasury operations, governance proposals, and authentication.
+# 🔐 TechTown Payroll — Backend
 
-## Overview
+**A privacy-first payroll API for DAOs, built on Stellar/Soroban**
 
-- **Language:** Rust (2021 edition)
-- **Framework:** Axum 0.7
-- **Database:** PostgreSQL (via SQLx)
-- **Cache:** Redis
-- **Blockchain:** Stellar / Soroban smart contracts
-- **Privacy:** Zero-Knowledge commitments using SHA-256 + Merkle trees
+![Rust](https://img.shields.io/badge/Rust-2021-orange?logo=rust)
+![Axum](https://img.shields.io/badge/Axum-0.7-blue)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-336791?logo=postgresql&logoColor=white)
+![Redis](https://img.shields.io/badge/Redis-6+-DC382D?logo=redis&logoColor=white)
+![Stellar](https://img.shields.io/badge/Stellar-Soroban-7B61FF?logo=stellar&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-green)
 
-## Architecture
+</div>
+
+---
+
+## What is this?
+
+TechTown Payroll Backend is a REST API server that powers confidential DAO payroll on the Stellar blockchain. Salaries are never stored in plaintext — instead, they are locked behind **Zero-Knowledge commitment hashes** and **Merkle trees**, allowing payroll to be verified on-chain without revealing individual amounts.
+
+---
+
+## ✨ Features
+
+| Feature | Description |
+|---------|-------------|
+| 🏛️ **DAO Management** | Create and manage on-chain DAOs with configurable multi-sig thresholds |
+| 👥 **Employee Lifecycle** | Add, freeze, activate, and remove employees with ZK salary commitments |
+| 💸 **Payroll Lifecycle** | Full flow: Create → Approve → Execute → Claim with on-chain ZK proof |
+| 🏦 **Treasury** | Token deposits and live balance tracking across all transactions |
+| 🗳️ **Proposals** | Multi-sig governance proposals with per-address approval tracking |
+| 🔑 **Auth** | Wallet-based JWT authentication (register, login, refresh) |
+| ⚡ **Caching** | Redis-backed payroll cache with 1-hour TTL and auto-invalidation |
+
+---
+
+## 🏗️ Architecture
 
 ```
-src/
-├── main.rs              # Server bootstrap, router setup
-├── config.rs            # Config loaded from environment variables
-├── models.rs            # Shared data models (DAO, Employee, Payroll, Proposal, etc.)
-├── api/
-│   ├── auth.rs          # Login, register, token refresh
-│   ├── dao.rs           # Create and fetch DAOs
-│   ├── employee.rs      # Add, update, remove employees
-│   ├── payroll.rs       # Payroll CRUD, treasury, proposals
-│   └── health.rs        # Health check endpoint
-├── db/
-│   └── mod.rs           # Database connection pool setup
-└── services/
-    ├── mod.rs           # Service exports (PayrollService, StellarService)
-    ├── payroll_service.rs # Core business logic
-    └── utils/
-        ├── merkle_tree.rs # Merkle tree for payroll proofs
-        └── zk_prover.rs   # ZK commitment and proof generation
-migrations/
-└── 0001_initial.sql     # Initial database schema
+techtown-payroll-backend/
+├── src/
+│   ├── main.rs                    # Server bootstrap and router setup
+│   ├── config.rs                  # Environment-based configuration
+│   ├── models.rs                  # Shared data types (DAO, Employee, Payroll…)
+│   ├── api/
+│   │   ├── auth.rs                # Login, register, token refresh
+│   │   ├── dao.rs                 # Create and fetch DAOs
+│   │   ├── employee.rs            # Employee CRUD
+│   │   ├── payroll.rs             # Payroll, treasury, proposals
+│   │   └── health.rs              # Health check
+│   ├── db/
+│   │   └── mod.rs                 # PostgreSQL connection pool
+│   └── services/
+│       ├── payroll_service.rs     # Core business logic
+│       └── utils/
+│           ├── merkle_tree.rs     # Merkle tree construction
+│           └── zk_prover.rs      # ZK commitment and proof generation
+└── migrations/
+    └── 0001_initial.sql           # Full database schema
 ```
 
-## Features
+---
 
-- **DAO Management** — Create and manage on-chain DAOs with multi-sig thresholds
-- **Employee Lifecycle** — Add, freeze, activate, and remove employees with privacy-preserving salary commitments
-- **Payroll Lifecycle** — Create → Approve → Execute → Claim with ZK proof verification and Merkle root anchoring
-- **Treasury** — Track deposits and compute live balance across all treasury transactions
-- **Proposals** — Multi-sig governance proposals with per-address approval tracking
-- **Auth** — Wallet-based authentication (JWT) with register, login, and token refresh
-- **Caching** — Redis caching for payroll reads with 1-hour TTL and automatic invalidation
+## 🔌 API Reference
 
-## API Reference
+<details>
+<summary><b>🔒 Auth</b></summary>
 
-### Health
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/health` | Server health check |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/auth/register` | Register a new wallet user |
+| `POST` | `/api/auth/login` | Authenticate and receive a JWT |
+| `POST` | `/api/auth/refresh` | Refresh an existing JWT |
 
-### Auth
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/auth/register` | Register a new wallet user |
-| POST | `/api/auth/login` | Authenticate and receive JWT |
-| POST | `/api/auth/refresh` | Refresh an existing JWT |
+</details>
 
-### DAOs
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/daos` | Create a new DAO |
-| GET | `/api/daos/:id` | Get DAO by ID |
+<details>
+<summary><b>🏛️ DAOs</b></summary>
 
-### Employees
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/daos/:id/employees` | Add an employee |
-| GET | `/api/daos/:id/employees` | List all active employees |
-| PUT | `/api/daos/:id/employees/:employee_id` | Freeze or activate an employee |
-| DELETE | `/api/daos/:id/employees/:employee_id` | Remove an employee |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/daos` | Create a new DAO |
+| `GET` | `/api/daos/:id` | Get DAO by ID |
 
-### Payroll
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/daos/:id/payroll` | Create a payroll run |
-| GET | `/api/daos/:id/payroll` | List payrolls (paginated) |
-| POST | `/api/daos/:id/payroll/:payroll_id/approve` | Approve a payroll |
-| POST | `/api/daos/:id/payroll/:payroll_id/execute` | Execute an approved payroll |
-| POST | `/api/daos/:id/payroll/:payroll_id/claim` | Claim payroll as an employee |
+</details>
 
-### Treasury
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/daos/:id/treasury/deposit` | Deposit tokens to treasury |
-| GET | `/api/daos/:id/treasury/balance` | Get current treasury balance |
+<details>
+<summary><b>👥 Employees</b></summary>
 
-### Proposals
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/daos/:id/proposals` | Create a governance proposal |
-| GET | `/api/daos/:id/proposals` | List proposals |
-| POST | `/api/daos/:id/proposals/:proposal_id/approve` | Approve a proposal |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/daos/:id/employees` | Add an employee |
+| `GET` | `/api/daos/:id/employees` | List all active employees |
+| `PUT` | `/api/daos/:id/employees/:employee_id` | Freeze or activate an employee |
+| `DELETE` | `/api/daos/:id/employees/:employee_id` | Remove an employee |
 
-## Database Schema
+</details>
 
-| Table | Description |
-|-------|-------------|
+<details>
+<summary><b>💸 Payroll</b></summary>
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/daos/:id/payroll` | Create a payroll run |
+| `GET` | `/api/daos/:id/payroll` | List payrolls (paginated) |
+| `POST` | `/api/daos/:id/payroll/:payroll_id/approve` | Approve a payroll |
+| `POST` | `/api/daos/:id/payroll/:payroll_id/execute` | Execute an approved payroll on-chain |
+| `POST` | `/api/daos/:id/payroll/:payroll_id/claim` | Claim payment as an employee |
+
+</details>
+
+<details>
+<summary><b>🏦 Treasury</b></summary>
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/daos/:id/treasury/deposit` | Deposit tokens to treasury |
+| `GET` | `/api/daos/:id/treasury/balance` | Get current treasury balance |
+
+</details>
+
+<details>
+<summary><b>🗳️ Proposals</b></summary>
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/daos/:id/proposals` | Create a governance proposal |
+| `GET` | `/api/daos/:id/proposals` | List proposals |
+| `POST` | `/api/daos/:id/proposals/:proposal_id/approve` | Approve a proposal |
+
+</details>
+
+<details>
+<summary><b>❤️ Health</b></summary>
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/health` | Server health check |
+
+</details>
+
+---
+
+## 🗄️ Database Schema
+
+| Table | Purpose |
+|-------|---------|
 | `users` | Registered wallet users |
 | `daos` | DAO registry with on-chain contract address |
 | `employees` | DAO members with ZK commitment hashes |
 | `payrolls` | Payroll runs with Merkle root and lifecycle status |
 | `salary_commitments` | Per-employee salary commitments per payroll period |
-| `proposals` | Governance proposals with multi-sig approvals array |
-| `treasury_transactions` | Deposits and withdrawals for treasury balance tracking |
+| `proposals` | Governance proposals with multi-sig approvals |
+| `treasury_transactions` | Deposit/withdrawal records for balance tracking |
 
-## Getting Started
+---
+
+## 🚀 Getting Started
 
 ### Prerequisites
 
-- Rust 1.75+
-- PostgreSQL 14+
-- Redis 6+
-- A Stellar RPC endpoint (Soroban-compatible)
+- **Rust** 1.75+
+- **PostgreSQL** 14+
+- **Redis** 6+
+- A **Stellar RPC** endpoint (Soroban-compatible)
 
-### Environment Variables
+### 1. Configure Environment
 
 Create a `.env` file in the project root:
 
@@ -132,64 +180,76 @@ CORS_ORIGIN=http://localhost:3001
 PORT=3000
 ```
 
-### Running Locally
+### 2. Run Migrations
 
 ```bash
-# Install Rust (if needed)
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-
-# Run database migrations
 cargo install sqlx-cli
 sqlx migrate run
+```
 
-# Start the server
+### 3. Start the Server
+
+```bash
 cargo run
 ```
 
-The server starts on `http://localhost:3000` by default.
+> Server starts at **http://localhost:3000**
 
-### Using Docker
+---
 
+## 🐳 Docker
+
+**Standalone:**
 ```bash
 docker build -t techtown-payroll-backend .
 docker run -p 3000:3000 --env-file .env techtown-payroll-backend
 ```
 
-### With Docker Compose
-
-From the root `xiaxia/` directory:
-
+**With Docker Compose** (from the root `xiaxia/` directory):
 ```bash
 docker compose up
 ```
 
-## Development
+---
+
+## 🛠️ Development Commands
 
 ```bash
-# Run with auto-reload
-cargo watch -x run
-
-# Run tests
-cargo test
-
-# Check for linting issues
-cargo clippy
-
-# Format code
-cargo fmt
+cargo watch -x run   # Auto-reload on file changes
+cargo test           # Run tests
+cargo clippy         # Lint
+cargo fmt            # Format code
 ```
 
-## Privacy Model
+---
 
-Salary amounts are never stored in plaintext. When an employee is added:
+## 🔐 Privacy Model
 
-1. A **commitment hash** is generated: `SHA-256(salary || randomness || wallet_address)`
-2. Only the hash is stored on-chain and in the database
-3. At payroll execution, a **Merkle tree** is built from all salary commitments
-4. The **Merkle root** is anchored to the payroll record and verified on Stellar
+Salary amounts are **never stored in plaintext**. Here's how it works:
 
-> Note: The current ZK prover is a prototype using SHA-256 hashing. Production deployment should replace it with a full Groth16 or PLONK proof system (e.g., via `arkworks` or `bellman`).
+```
+Employee Added
+      │
+      ▼
+SHA-256(salary ∥ randomness ∥ wallet_address)
+      │
+      ▼
+  commitment_hash  ──────────────► stored in DB + on-chain
+      │
+      ▼
+Payroll Execution
+      │
+      ▼
+MerkleTree(all commitments)
+      │
+      ▼
+  merkle_root  ────────────────── anchored to payroll record on Stellar
+```
 
-## License
+> ⚠️ **Note:** The current ZK prover is a prototype using SHA-256. For production, replace it with a full **Groth16** or **PLONK** proof system (e.g., [`arkworks`](https://github.com/arkworks-rs) or [`bellman`](https://github.com/zkcrypto/bellman)).
 
-MIT
+---
+
+## 📄 License
+
+[MIT](./LICENSE)
