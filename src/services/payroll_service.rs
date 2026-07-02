@@ -1,8 +1,7 @@
-use crate::db::DatabasePool;
 use crate::models::*;
 use crate::services::StellarService;
-use crate::utils::merkle_tree::MerkleTree;
-use crate::utils::zk_prover::ZKProver;
+use crate::services::utils::merkle_tree::MerkleTree;
+use crate::services::utils::zk_prover::ZKProver;
 use sqlx::postgres::PgPool;
 use redis::Client;
 use std::sync::Arc;
@@ -423,5 +422,169 @@ impl PayrollService {
         ).await?;
 
         Ok(())
+    }
+}
+
+    // ── DAO ──────────────────────────────────────────────────────────────────
+
+    pub async fn get_dao(
+        &self,
+        dao_id: i64,
+    ) -> Result<Option<crate::models::DAO>, Box<dyn std::error::Error>> {
+        let dao = sqlx::query_as!(
+            crate::models::DAO,
+            r#"SELECT id, name, symbol, admin_address, multisig_threshold, total_members, paused, contract_address, created_at, updated_at
+               FROM daos WHERE id = $1"#,
+            dao_id,
+        )
+        .fetch_optional(self.db.as_ref())
+        .await?;
+        Ok(dao)
+    }
+
+    // ── Employees ─────────────────────────────────────────────────────────────
+
+    pub async fn get_employees(
+        &self,
+        dao_id: i64,
+    ) -> Result<Vec<crate::models::Employee>, Box<dyn std::error::Error>> {
+        let list = sqlx::query_as!(
+            crate::models::Employee,
+            r#"SELECT id, dao_id, wallet_address, department, status, commitment_hash, joined_at, last_payroll_at
+               FROM employees WHERE dao_id = $1 AND status != 'removed' ORDER BY joined_at"#,
+            dao_id,
+        )
+        .fetch_all(self.db.as_ref())
+        .await?;
+        Ok(list)
+    }
+
+    pub async fn freeze_employee(
+        &self,
+        dao_id: i64,
+        employee_id: i64,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        sqlx::query!(
+            "UPDATE employees SET status = 'frozen' WHERE id = $1 AND dao_id = $2",
+            employee_id, dao_id,
+        )
+        .execute(self.db.as_ref())
+        .await?;
+        Ok(())
+    }
+
+    pub async fn activate_employee(
+        &self,
+        dao_id: i64,
+        employee_id: i64,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        sqlx::query!(
+            "UPDATE employees SET status = 'active' WHERE id = $1 AND dao_id = $2",
+            employee_id, dao_id,
+        )
+        .execute(self.db.as_ref())
+        .await?;
+        Ok(())
+    }
+
+    pub async fn remove_employee(
+        &self,
+        dao_id: i64,
+        employee_id: i64,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        sqlx::query!(
+            "UPDATE employees SET status = 'removed' WHERE id = $1 AND dao_id = $2",
+            employee_id, dao_id,
+        )
+        .execute(self.db.as_ref())
+        .await?;
+        Ok(())
+    }
+
+    // ── Treasury ──────────────────────────────────────────────────────────────
+
+    pub async fn deposit_to_treasury(
+        &self,
+        dao_id: i64,
+        token_address: String,
+        from_address: String,
+        amount: i64,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        sqlx::query!(
+            r#"INSERT INTO treasury_transactions (dao_id, token_address, from_address, amount, tx_type)
+               VALUES ($1, $2, $3, $4, 'deposit')"#,
+            dao_id, token_address, from_address, amount as i64,
+        )
+        .execute(self.db.as_ref())
+        .await?;
+        Ok(())
+    }
+
+    pub async fn get_treasury_balance(
+        &self,
+        dao_id: i64,
+    ) -> Result<i64, Box<dyn std::error::Error>> {
+        let row = sqlx::query!(
+            r#"SELECT COALESCE(
+                SUM(CASE WHEN tx_type='deposit' THEN amount ELSE -amount END), 0
+               ) AS balance
+               FROM treasury_transactions WHERE dao_id = $1"#,
+            dao_id,
+        )
+        .fetch_one(self.db.as_ref())
+        .await?;
+        Ok(row.balance.unwrap_or(0))
+    }
+
+    // ── Proposals ─────────────────────────────────────────────────────────────
+
+    pub async fn create_proposal(
+        &self,
+        dao_id: i64,
+        proposer_address: String,
+        target_address: String,
+        function: String,
+        args: String,
+    ) -> Result<crate::models::Proposal, Box<dyn std::error::Error>> {
+        let proposal = sqlx::query_as!(
+            crate::models::Proposal,
+            r#"INSERT INTO proposals (dao_id, proposer_address, target_address, function, args, status, approvals)
+               VALUES ($1, $2, $3, $4, $5, 'active', $6)
+               RETURNING id, dao_id, proposer_address, target_address, function, args, status, approvals, created_at, executed_at"#,
+            dao_id, proposer_address.clone(), target_address, function, args,
+            &vec![proposer_address] as &Vec<String>,
+        )
+        .fetch_one(self.db.as_ref())
+        .await?;
+        Ok(proposal)
+    }
+
+    pub async fn approve_proposal(
+        &self,
+        proposal_id: i64,
+        approver_address: String,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        sqlx::query!(
+            r#"UPDATE proposals SET approvals = array_append(approvals, $1) WHERE id = $2"#,
+            approver_address, proposal_id,
+        )
+        .execute(self.db.as_ref())
+        .await?;
+        Ok(())
+    }
+
+    pub async fn get_proposals(
+        &self,
+        dao_id: i64,
+    ) -> Result<Vec<crate::models::Proposal>, Box<dyn std::error::Error>> {
+        let list = sqlx::query_as!(
+            crate::models::Proposal,
+            r#"SELECT id, dao_id, proposer_address, target_address, function, args, status, approvals, created_at, executed_at
+               FROM proposals WHERE dao_id = $1 ORDER BY created_at DESC"#,
+            dao_id,
+        )
+        .fetch_all(self.db.as_ref())
+        .await?;
+        Ok(list)
     }
 }

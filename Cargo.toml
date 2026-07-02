@@ -10,16 +10,17 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 dotenv = "0.15"
 tracing = "0.1"
-tracing-subscriber = "0.3"
-sqlx = { version = "0.7", features = ["runtime-tokio-native-tls", "postgres", "uuid", "chrono"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+sqlx = { version = "0.7", features = ["runtime-tokio-native-tls", "postgres", "uuid", "chrono", "migrate"] }
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1.0", features = ["v4", "serde"] }
 redis = { version = "0.23", features = ["tokio-comp"] }
 reqwest = { version = "0.11", features = ["json"] }
-stellar-sdk = "0.9"
-soroban-sdk = "20.0.0"
 tower-http = { version = "0.5", features = ["cors", "trace"] }
 argon2 = "0.5"
 jsonwebtoken = "9.2"
 async-trait = "0.1"
 thiserror = "1.0"
+sha2 = "0.10"
+hex = "0.4"
+rand = "0.8"
