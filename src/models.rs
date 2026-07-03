@@ -43,7 +43,7 @@ pub struct Payroll {
     pub id: i64,
     pub dao_id: i64,
     pub period: DateTime<Utc>,
-    pub total_amount: i128,
+    pub total_amount: i64,
     pub employee_count: i32,
     pub status: String,
     pub merkle_root: String,
@@ -58,7 +58,7 @@ pub struct SalaryCommitment {
     pub dao_id: i64,
     pub employee_id: i64,
     pub commitment_hash: String,
-    pub amount: i128,
+    pub amount: i64,
     pub period: DateTime<Utc>,
     pub created_at: DateTime<Utc>,
 }

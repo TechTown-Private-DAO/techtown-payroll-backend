@@ -4,7 +4,7 @@ use axum::{
     Json,
     Extension,
 };
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::{json, Value};
 use std::sync::Arc;
 
@@ -16,7 +16,7 @@ pub struct AddEmployeeRequest {
     pub wallet_address: String,
     pub department: String,
     /// Salary in stroops (1 XLM = 10_000_000 stroops)
-    pub salary: i128,
+    pub salary: i64,
     pub randomness: Vec<u8>,
 }
 

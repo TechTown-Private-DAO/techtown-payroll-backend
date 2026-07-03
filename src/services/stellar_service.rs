@@ -79,7 +79,7 @@ impl StellarService {
         &self,
         address: &str,
         token_address: &str,
-    ) -> Result<i128, Box<dyn Error>> {
+    ) -> Result<i64, Box<dyn Error>> {
         let response = self.client
             .get(&format!("{}/balance/{}/{}", self.rpc_url, address, token_address))
             .send()
@@ -90,7 +90,7 @@ impl StellarService {
         }
 
         let data: serde_json::Value = response.json().await?;
-        Ok(data["balance"].as_i64().unwrap_or(0) as i128)
+        Ok(data["balance"].as_i64().unwrap_or(0))
     }
 
     pub async fn transfer(
@@ -98,7 +98,7 @@ impl StellarService {
         from: &str,
         to: &str,
         token_address: &str,
-        amount: i128,
+        amount: i64,
     ) -> Result<String, Box<dyn Error>> {
         let response = self.client
             .post(&format!("{}/transfer", self.rpc_url))

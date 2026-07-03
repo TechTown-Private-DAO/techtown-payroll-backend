@@ -6,7 +6,6 @@ use sqlx::postgres::PgPool;
 use redis::Client;
 use std::sync::Arc;
 use chrono::{DateTime, Utc};
-use uuid::Uuid;
 
 pub struct PayrollService {
     db: Arc<PgPool>,
@@ -68,7 +67,7 @@ impl PayrollService {
         dao_id: i64,
         wallet_address: String,
         department: String,
-        salary: i128,
+        salary: i64,
         randomness: Vec<u8>,
     ) -> Result<Employee, Box<dyn std::error::Error>> {
         // Generate commitment hash
@@ -286,6 +285,7 @@ impl PayrollService {
         ).await?;
 
         // Update payroll
+        let payroll_id_for_cache = payroll.id;
         let mut updated = payroll;
         updated.status = "executed".to_string();
         updated.executed_at = Some(Utc::now());
@@ -323,7 +323,7 @@ impl PayrollService {
         // Clear cache
         let mut conn = self.redis.get_async_connection().await?;
         let _: () = redis::cmd("DEL")
-            .arg(&format!("payroll:{}", payroll.id))
+            .arg(&format!("payroll:{}", payroll_id_for_cache))
             .query_async(&mut conn)
             .await?;
 
@@ -423,7 +423,6 @@ impl PayrollService {
 
         Ok(())
     }
-}
 
     // ── DAO ──────────────────────────────────────────────────────────────────
 

@@ -4,7 +4,7 @@ use axum::{
     Json,
     Extension,
 };
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::{json, Value};
 use std::sync::Arc;
 

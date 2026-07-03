@@ -12,7 +12,7 @@ impl ZKProver {
 
     pub fn generate_commitment_hash(
         &self,
-        salary: i128,
+        salary: i64,
         randomness: &[u8],
         employee_id: &str,
     ) -> String {
@@ -27,7 +27,7 @@ impl ZKProver {
     pub fn generate_payroll_proof(
         &self,
         employees: &[Employee],
-        total_amount: i128,
+        total_amount: i64,
         merkle_root: String,
     ) -> Result<String, Box<dyn Error>> {
         // In production, this would generate a real ZK proof using Groth16 or PLONK
@@ -63,7 +63,7 @@ impl ZKProver {
 
     pub fn generate_salary_commitment(
         &self,
-        salary: i128,
+        salary: i64,
         employee_id: &str,
     ) -> (String, Vec<u8>) {
         let mut rng = rand::thread_rng();
