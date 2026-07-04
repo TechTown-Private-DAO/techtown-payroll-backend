@@ -117,13 +117,13 @@ impl PayrollService {
         .await?;
 
         // Calculate total amount from commitments
-        let mut total_amount = 0;
+        let mut total_amount: i64 = 0;
         let mut leaves = Vec::new();
         
         for employee in &employees {
             // In production, this would decrypt the commitment to get the salary
             // For now, we'll assume the salary is stored encrypted
-            let salary = 100000; // Example amount
+            let salary: i64 = 100000; // Example amount
             total_amount += salary;
             leaves.push((employee.id, salary));
         }
@@ -526,7 +526,7 @@ impl PayrollService {
         let row = sqlx::query!(
             r#"SELECT COALESCE(
                 SUM(CASE WHEN tx_type='deposit' THEN amount ELSE -amount END), 0
-               ) AS balance
+               )::BIGINT AS balance
                FROM treasury_transactions WHERE dao_id = $1"#,
             dao_id,
         )

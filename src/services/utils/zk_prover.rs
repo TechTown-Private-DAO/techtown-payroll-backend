@@ -47,7 +47,7 @@ impl ZKProver {
         // Add random proof elements
         let mut rng = rand::thread_rng();
         for _ in 0..10 {
-            let random_value: i128 = rng.gen();
+            let random_value: i64 = rng.gen();
             proof.push(random_value.to_string());
         }
 

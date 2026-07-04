@@ -9,7 +9,7 @@ pub struct MerkleTree {
 }
 
 impl MerkleTree {
-    pub fn new(data: Vec<(i64, i128)>) -> Self {
+    pub fn new(data: Vec<(i64, i64)>) -> Self {
         let mut leaves = Vec::new();
         let mut leaf_map = HashMap::new();
         
@@ -30,7 +30,7 @@ impl MerkleTree {
         }
     }
 
-    fn hash_leaf(id: i64, amount: i128) -> String {
+    fn hash_leaf(id: i64, amount: i64) -> String {
         let mut hasher = Sha256::new();
         hasher.update(id.to_be_bytes());
         hasher.update(amount.to_be_bytes());
@@ -74,7 +74,7 @@ impl MerkleTree {
         self.root.clone()
     }
 
-    pub fn get_proof(&self, id: i64, amount: i128) -> Vec<String> {
+    pub fn get_proof(&self, id: i64, amount: i64) -> Vec<String> {
         let leaf = Self::hash_leaf(id, amount);
         let mut proof = Vec::new();
         
