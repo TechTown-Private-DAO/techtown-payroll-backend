@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COALESCE(\n                SUM(CASE WHEN tx_type='deposit' THEN amount ELSE -amount END), 0\n               )::BIGINT AS balance\n               FROM treasury_transactions WHERE dao_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "balance",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "8d1a33df1b0d707337281e3c50e361898f3e41e7b00129def2bd8c7167fc14b2"
+}

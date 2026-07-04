@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT s.id\n            FROM salary_commitments s\n            WHERE s.employee_id = $1 AND s.period = (\n                SELECT period FROM payrolls WHERE id = $2\n            )\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "381612e8c61bc3f41e58b4fb2546335b28dee4956055a122df9a540717578048"
+}

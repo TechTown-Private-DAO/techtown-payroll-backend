@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE proposals SET approvals = array_append(approvals, $1) WHERE id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c41c8d2e33bff704427f8e1c1a7b9c8d1cc378892cf56a77d977fa64c01b5c8f"
+}

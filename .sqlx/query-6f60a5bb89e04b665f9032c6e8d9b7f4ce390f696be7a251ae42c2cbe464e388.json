@@ -1,0 +1,76 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, name, symbol, admin_address, multisig_threshold, total_members, paused, contract_address, created_at, updated_at\n               FROM daos WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "symbol",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "admin_address",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "multisig_threshold",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "total_members",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 6,
+        "name": "paused",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 7,
+        "name": "contract_address",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 8,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 9,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "6f60a5bb89e04b665f9032c6e8d9b7f4ce390f696be7a251ae42c2cbe464e388"
+}

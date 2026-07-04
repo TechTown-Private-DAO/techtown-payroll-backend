@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE employees SET status = 'removed' WHERE id = $1 AND dao_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f061ede202b64e93f0aa4057a84ab717a01e5f1365ddc84511fd7d3ca8a37e19"
+}

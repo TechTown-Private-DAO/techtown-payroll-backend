@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO treasury_transactions (dao_id, token_address, from_address, amount, tx_type)\n               VALUES ($1, $2, $3, $4, 'deposit')",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Varchar",
+        "Varchar",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0399c9c83b47fc1b69b642ddeccaec9e2571aa5bf0995361f34cec8cbff5284b"
+}
